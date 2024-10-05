@@ -1,0 +1,129 @@
+diff -ru pico9918.ORG/src/main.c pico9918/src/main.c
+--- pico9918.ORG/src/main.c	2024-09-25 19:57:41.030224300 +0900
++++ pico9918/src/main.c	2024-09-25 20:22:08.682002300 +0900
+@@ -63,13 +63,13 @@
+   */
+ 
+ #define PCB_MAJOR_VERSION 0
+-#define PCB_MINOR_VERSION 4
++#define PCB_MINOR_VERSION 3
+ 
+-#define GPIO_CD0 14
++#define GPIO_CD0 12
+ #define GPIO_CSR tmsRead_CSR_PIN  // defined in tms9918.pio
+ #define GPIO_CSW tmsWrite_CSW_PIN // defined in tms9918.pio
+-#define GPIO_MODE 28
+-#define GPIO_INT 22
++#define GPIO_MODE 22
++#define GPIO_INT 26
+ 
+ #if PCB_MAJOR_VERSION != 0
+ #error "Time traveller?"
+@@ -78,8 +78,8 @@
+   // pin-mapping for gromclk and cpuclk changed in PCB v0.4
+   // in order to have MODE and MODE1 sequential
+ #if PCB_MINOR_VERSION < 4
+-#define GPIO_GROMCL 29
+-#define GPIO_CPUCL 23
++//#define GPIO_GROMCL 29
++#define GPIO_CPUCL 25
+ #else
+ #define GPIO_GROMCL 25
+ #define GPIO_CPUCL 24
+@@ -180,8 +180,8 @@
+ static inline void enableTmsPioInterrupts()
+ {
+   __dmb();
+-  *((io_rw_32*)(PPB_BASE + M0PLUS_NVIC_ICPR_OFFSET)) = 1u << TMS_IRQ;
+-  *((io_rw_32*)(PPB_BASE + M0PLUS_NVIC_ISER_OFFSET)) = 1u << TMS_IRQ;
++  *((io_rw_32*)(PPB_BASE + M33_NVIC_ICPR0_OFFSET)) = 1u << TMS_IRQ;
++  *((io_rw_32*)(PPB_BASE + M33_NVIC_ISER0_OFFSET)) = 1u << TMS_IRQ;
+ }
+ 
+ /*
+@@ -189,7 +189,7 @@
+  */
+ static inline void disableTmsPioInterrupts()
+ {
+-  *((io_rw_32*)(PPB_BASE + M0PLUS_NVIC_ICER_OFFSET)) = 1u << TMS_IRQ;
++  *((io_rw_32*)(PPB_BASE + M33_NVIC_ICER0_OFFSET)) = 1u << TMS_IRQ;
+   __dmb();
+ }
+ 
+@@ -410,7 +410,7 @@
+   tmsPioInit();
+ 
+   // set up the GROMCLK and CPUCLK signals
+-  initClock(GPIO_GROMCL, TMS_CRYSTAL_FREQ_HZ / 24.0f);
++  //initClock(GPIO_GROMCL, TMS_CRYSTAL_FREQ_HZ / 24.0f);
+   initClock(GPIO_CPUCL, TMS_CRYSTAL_FREQ_HZ / 3.0f);
+ 
+   // wait until everything else is ready, then run the vga loop
+diff -ru pico9918.ORG/src/tms9918.pio pico9918/src/tms9918.pio
+--- pico9918.ORG/src/tms9918.pio	2024-09-25 19:57:41.108354100 +0900
++++ pico9918/src/tms9918.pio	2024-09-25 19:59:16.755048300 +0900
+@@ -27,7 +27,7 @@
+ ;
+ 
+ .program tmsRead
+-.define public CSR_PIN 26
++.define public CSR_PIN 20
+ 
+   pull block
+   mov x, osr        ; ensure we have a valid fifio value in x
+@@ -70,7 +70,7 @@
+ ;              | | |e| |    |        |
+ 
+ .program tmsWrite
+-.define public CSW_PIN 27
++.define public CSW_PIN 21
+ 
+   wait 0 gpio CSW_PIN [12]   ; wait for CSW to go active (low)
+   in pins, 16                ; grab the data CD0-7 and auto-push
+diff -ru pico9918.ORG/src/vga/vga.c pico9918/src/vga/vga.c
+--- pico9918.ORG/src/vga/vga.c	2024-09-25 19:57:41.155226200 +0900
++++ pico9918/src/vga/vga.c	2024-09-25 20:02:44.489401800 +0900
+@@ -49,10 +49,10 @@
+ }
+ 
+ 
+-#define SYNC_PINS_START 0        // first sync pin gpio number
++#define SYNC_PINS_START 27       // first sync pin gpio number
+ #define SYNC_PINS_COUNT 2        // number of sync pins (h and v)
+ 
+-#define RGB_PINS_START  2        // first rgb pin gpio number
++#define RGB_PINS_START  0        // first rgb pin gpio number
+ #define RGB_PINS_COUNT 12        // number of rgb pins
+ 
+ #define VGA_PIO         pio0_hw  // which pio are we using for vga?
+@@ -473,4 +473,4 @@
+ VgaInitParams vgaCurrentParams()
+ {
+   return vgaParams;
+-}
+\ No newline at end of file
++}
+diff -ru pico9918.ORG/tools/bin2carray.py pico9918/tools/bin2carray.py
+--- pico9918.ORG/tools/bin2carray.py	2024-09-25 19:57:41.217717800 +0900
++++ pico9918/tools/bin2carray.py	2024-09-25 20:25:01.885131700 +0900
+@@ -102,7 +102,7 @@
+         sanitizedFile = re.sub('[^0-9a-zA-Z]+', '_', baseName.upper())
+         hdrText += f"#pragma once\n\n"
+     else:
+-        hdrText += "#include \"pico/platform.h\"\n"
++        hdrText += "#include \"pico.h\"\n"
+     hdrText += "#include <inttypes.h>"
+     return hdrText
+ 
+diff -ru pico9918.ORG/tools/img2carray.py pico9918/tools/img2carray.py
+--- pico9918.ORG/tools/img2carray.py	2024-09-25 19:57:41.217717800 +0900
++++ pico9918/tools/img2carray.py	2024-09-25 20:24:17.275733500 +0900
+@@ -119,7 +119,7 @@
+         sanitizedFile = re.sub('[^0-9a-zA-Z]+', '_', baseName.upper())
+         hdrText += f"#pragma once\n"
+     else:
+-        hdrText += "#include \"pico/platform.h\"\n"
++        hdrText += "#include \"pico.h\"\n"
+     hdrText += "#include <inttypes.h>"
+     return hdrText
+ 
