@@ -1,4 +1,4 @@
-【壊れても知りません！】PICO9918 v0.4.1 for Pico2
+【壊れても知りません！】PICO9918 v0.4.2 for Pico2
 
 Raspberry Pi Pico2(rp2350)用のpico9918の回路図(pico9918.pdf)とファームウェア(pico9918.uf2)です。
 置き換え対象がTMS9918/TMS9118の場合はpico2ボード要改造です。mod.pngの通りにLEDを外してください。
